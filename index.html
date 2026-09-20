@@ -185,8 +185,10 @@
   <header>
     <h1>Storibox Photo Extractor</h1>
     <p>
-      Paste a saved Storibox album page (or upload the .html file) to pull out the
-      real photo/video URLs, skipping the watermark overlay.
+      Paste a saved Storibox album page's HTML (or upload the .html file) to pull out
+      the real photo/video URLs, skipping the watermark overlay. Pasting a bare URL
+      will try fetching it directly, but most sites block that from a browser — if it
+      fails, use "View Page Source" on the album page instead.
       Runs entirely in your browser — nothing is uploaded anywhere.
       Source on <a href="https://github.com/Vinayakrevankar/storibox-photo-extractor" target="_blank" rel="noopener">GitHub</a>,
       or use the <a href="https://github.com/Vinayakrevankar/storibox-photo-extractor#usage" target="_blank" rel="noopener">Node CLI</a> for fetching a live URL directly.
@@ -195,7 +197,7 @@
 
   <section class="card">
     <h2>Input</h2>
-    <textarea id="html-input" placeholder="Paste the album page's HTML here…" spellcheck="false"></textarea>
+    <textarea id="html-input" placeholder="Paste the album page's HTML here (View Page Source), or a direct URL to try fetching it…" spellcheck="false"></textarea>
     <div class="row">
       <button class="file-btn" id="file-btn" type="button">Upload .html file</button>
       <input type="file" id="file-input" accept=".html,text/html">
@@ -265,13 +267,52 @@
     statusEl.className = "status" + (kind ? " " + kind : "");
   }
 
+  function isBareUrl(text) {
+    return /^https?:\/\/\S+$/i.test(text);
+  }
+
   function extract() {
-    var html = htmlInput.value.trim();
-    if (!html) {
+    var input = htmlInput.value.trim();
+    if (!input) {
       setStatus("Paste some HTML first, or upload a file.", "error");
       return;
     }
 
+    if (isBareUrl(input)) {
+      fetchAndExtract(input);
+      return;
+    }
+
+    extractFromHtml(input);
+  }
+
+  function fetchAndExtract(url) {
+    extractBtn.disabled = true;
+    setStatus("Fetching " + url + " …", null);
+
+    fetch(url)
+      .then(function (res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.text();
+      })
+      .then(function (html) {
+        extractFromHtml(html);
+      })
+      .catch(function () {
+        setStatus(
+          "Could not fetch that URL from the browser (most sites block cross-origin requests). " +
+          "Instead: open the page, use “View Page Source” (or Save Page As → Webpage, HTML only) " +
+          "after scrolling to load every photo, then paste that HTML here or upload the saved file. " +
+          "The Node CLI (linked above) can also fetch a live URL directly.",
+          "error"
+        );
+      })
+      .finally(function () {
+        extractBtn.disabled = false;
+      });
+  }
+
+  function extractFromHtml(html) {
     var doc;
     try {
       doc = new DOMParser().parseFromString(html, "text/html");
