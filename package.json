@@ -1,0 +1,15 @@
+{
+  "name": "storibox-photo-extractor",
+  "version": "1.0.0",
+  "description": "Extract photo/video thumbnail URLs from a Storibox album page, skipping the watermark overlay.",
+  "type": "module",
+  "bin": {
+    "extract-photos": "extract.js"
+  },
+  "scripts": {
+    "start": "node extract.js"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0"
+  }
+}
