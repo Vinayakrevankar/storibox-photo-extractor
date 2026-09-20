@@ -69,6 +69,29 @@
     margin: 0 0 24px;
   }
   header a { color: var(--accent); }
+  header details {
+    margin-top: 4px;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+  }
+  header summary {
+    cursor: pointer;
+    color: var(--accent);
+    font-weight: 500;
+  }
+  header details ol {
+    margin: 10px 0;
+    padding-left: 20px;
+  }
+  header details li { margin-bottom: 6px; }
+  header details p { margin: 8px 0 0; }
+  code, kbd {
+    font: 12px ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: var(--mono-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
   .card {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -191,19 +214,30 @@
   <header>
     <h1>Storibox Photo Extractor</h1>
     <p>
-      Paste a saved Storibox album page's HTML (or upload the .html file) to pull out
-      the real photo/video URLs, skipping the watermark overlay. Pasting a bare URL
-      will try fetching it directly, but most sites block that from a browser — if it
-      fails, use "View Page Source" on the album page instead.
+      Paste a Storibox album page's rendered HTML (or upload the .html file) to pull
+      out the real photo/video URLs, skipping the watermark overlay.
       Runs entirely in your browser — nothing is uploaded anywhere.
-      Source on <a href="https://github.com/Vinayakrevankar/storibox-photo-extractor" target="_blank" rel="noopener">GitHub</a>,
-      or use the <a href="https://github.com/Vinayakrevankar/storibox-photo-extractor#usage" target="_blank" rel="noopener">Node CLI</a> for fetching a live URL directly.
+      Source on <a href="https://github.com/Vinayakrevankar/storibox-photo-extractor" target="_blank" rel="noopener">GitHub</a>.
     </p>
+    <details>
+      <summary>How to get the HTML (most Storibox albums load photos via JavaScript)</summary>
+      <ol>
+        <li>Open the album page and scroll all the way down so every photo lazy-loads.</li>
+        <li>Right-click the page → <strong>Inspect</strong> (opens DevTools).</li>
+        <li>In the <em>Elements</em>/<em>Inspector</em> panel, press <kbd>Ctrl/Cmd+F</kbd> and search for <code>gallery</code> to find the <code>&lt;div class="gallery"&gt;</code> element (or use the element picker and click a photo).</li>
+        <li>Right-click that element → <strong>Copy</strong> → <strong>Copy outerHTML</strong>.</li>
+        <li>Paste it into the box below.</li>
+      </ol>
+      <p>
+        Plain "View Page Source" (Ctrl/Cmd+U) or a bare URL usually won't work — it only
+        shows the empty shell before the page's JavaScript fetches and inserts the photos.
+      </p>
+    </details>
   </header>
 
   <section class="card">
     <h2>Input</h2>
-    <textarea id="html-input" placeholder="Paste the album page's HTML here (View Page Source), a direct URL to try fetching it, or drag an .html file in…" spellcheck="false"></textarea>
+    <textarea id="html-input" placeholder="Paste the gallery's outerHTML (see “How to get the HTML” above), a direct URL to try fetching it, or drag an .html file in…" spellcheck="false"></textarea>
     <div class="row">
       <button class="file-btn" id="file-btn" type="button">Upload .html file</button>
       <input type="file" id="file-input" accept=".html,text/html">
@@ -352,10 +386,9 @@
       })
       .catch(function () {
         setStatus(
-          "Could not fetch that URL, even via a CORS proxy. Instead: open the page, use " +
-          "“View Page Source” (or Save Page As → Webpage, HTML only) after scrolling to load " +
-          "every photo, then paste that HTML here or upload the saved file. The Node CLI " +
-          "(linked above) can also fetch a live URL directly.",
+          "Could not fetch that URL, even via a CORS proxy. Most Storibox albums load photos " +
+          "with JavaScript anyway, so a raw fetch wouldn't contain them even if it worked — " +
+          "use the “Copy outerHTML” steps above instead.",
           "error"
         );
       })
@@ -408,7 +441,12 @@
     renderResults(rows);
 
     if (rows.length === 0) {
-      setStatus("No matching .gallery__item elements found. Make sure you pasted the full album HTML.", "error");
+      setStatus(
+        "No matching .gallery__item elements found. If you pasted View Page Source or a fetched " +
+        "URL, that's likely just the empty pre-JavaScript shell — use the “Copy outerHTML” steps " +
+        "above (via DevTools → Inspect) to get the gallery after it's rendered.",
+        "error"
+      );
     } else {
       var wm = rows.filter(function (r) { return r.watermarked; }).length;
       setStatus(
