@@ -89,10 +89,16 @@
     resize: vertical;
     background: var(--mono-bg);
     color: var(--text);
-    border: 1px solid var(--border);
+    border: 1px dashed transparent;
+    outline: 1px solid var(--border);
+    outline-offset: -1px;
     border-radius: 8px;
     padding: 12px;
     font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  textarea.drag-active {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 8%, var(--mono-bg));
   }
   .row {
     display: flex;
@@ -197,7 +203,7 @@
 
   <section class="card">
     <h2>Input</h2>
-    <textarea id="html-input" placeholder="Paste the album page's HTML here (View Page Source), or a direct URL to try fetching it…" spellcheck="false"></textarea>
+    <textarea id="html-input" placeholder="Paste the album page's HTML here (View Page Source), a direct URL to try fetching it, or drag an .html file in…" spellcheck="false"></textarea>
     <div class="row">
       <button class="file-btn" id="file-btn" type="button">Upload .html file</button>
       <input type="file" id="file-input" accept=".html,text/html">
@@ -248,7 +254,10 @@
 
   fileInput.addEventListener("change", function () {
     var file = fileInput.files && fileInput.files[0];
-    if (!file) return;
+    if (file) loadFile(file);
+  });
+
+  function loadFile(file) {
     var reader = new FileReader();
     reader.onload = function () {
       htmlInput.value = String(reader.result || "");
@@ -258,6 +267,44 @@
       setStatus("Could not read that file.", "error");
     };
     reader.readAsText(file);
+  }
+
+  // Drag-and-drop: dropping a file anywhere on the textarea loads it,
+  // same as the upload button. Dropped plain text (not a file) is used as-is.
+  ["dragenter", "dragover"].forEach(function (evt) {
+    htmlInput.addEventListener(evt, function (e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+      htmlInput.classList.add("drag-active");
+    });
+  });
+
+  ["dragleave", "dragend"].forEach(function (evt) {
+    htmlInput.addEventListener(evt, function () {
+      htmlInput.classList.remove("drag-active");
+    });
+  });
+
+  htmlInput.addEventListener("drop", function (e) {
+    e.preventDefault();
+    htmlInput.classList.remove("drag-active");
+    var file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file) {
+      loadFile(file);
+    } else {
+      var text = e.dataTransfer.getData("text/plain");
+      if (text) {
+        htmlInput.value = text;
+        setStatus("Loaded dropped text (" + text.length + " chars).", "ok");
+      }
+    }
+  });
+
+  // Prevent the browser from navigating away if a file is dropped outside the textarea.
+  ["dragover", "drop"].forEach(function (evt) {
+    window.addEventListener(evt, function (e) {
+      if (e.target !== htmlInput) e.preventDefault();
+    });
   });
 
   extractBtn.addEventListener("click", extract);
