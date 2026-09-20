@@ -286,30 +286,42 @@
     extractFromHtml(input);
   }
 
+  // Storibox (like most sites) doesn't send CORS headers, so a direct
+  // browser fetch is blocked. Fall back to a public CORS proxy that
+  // re-serves the page with permissive headers.
+  var CORS_PROXY = "https://api.allorigins.win/raw?url=";
+
   function fetchAndExtract(url) {
     extractBtn.disabled = true;
     setStatus("Fetching " + url + " …", null);
 
-    fetch(url)
-      .then(function (res) {
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        return res.text();
+    fetchText(url)
+      .catch(function () {
+        setStatus("Direct fetch blocked by CORS, retrying via proxy…", null);
+        return fetchText(CORS_PROXY + encodeURIComponent(url));
       })
       .then(function (html) {
         extractFromHtml(html);
       })
       .catch(function () {
         setStatus(
-          "Could not fetch that URL from the browser (most sites block cross-origin requests). " +
-          "Instead: open the page, use “View Page Source” (or Save Page As → Webpage, HTML only) " +
-          "after scrolling to load every photo, then paste that HTML here or upload the saved file. " +
-          "The Node CLI (linked above) can also fetch a live URL directly.",
+          "Could not fetch that URL, even via a CORS proxy. Instead: open the page, use " +
+          "“View Page Source” (or Save Page As → Webpage, HTML only) after scrolling to load " +
+          "every photo, then paste that HTML here or upload the saved file. The Node CLI " +
+          "(linked above) can also fetch a live URL directly.",
           "error"
         );
       })
       .finally(function () {
         extractBtn.disabled = false;
       });
+  }
+
+  function fetchText(url) {
+    return fetch(url).then(function (res) {
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return res.text();
+    });
   }
 
   function extractFromHtml(html) {
